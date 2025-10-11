@@ -9,3 +9,5 @@
 *.a
 /uploads/*
 *.json_backup*
+*.code-workspace
+*.vscode/

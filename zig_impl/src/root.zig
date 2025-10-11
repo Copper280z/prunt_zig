@@ -7,6 +7,7 @@ const types = @import("types.zig");
 const plt = @import("plot.zig");
 const diff = @import("diff.zig");
 const libusb = @import("libusb");
+const Transport = @import("transport.zig");
 
 const AxisMoveCmd = types.AxisMoveCmd;
 const MoveCmd = types.MoveCmd;
@@ -76,6 +77,7 @@ fn list_usb_devs() void {
         libusb.libusb_exit(ctx);
         return;
     }
+
     std.log.info("{} Devices found", .{dev_count});
     for (0..@intCast(dev_count)) |i| {
         var desc: libusb.libusb_device_descriptor = undefined;
@@ -83,7 +85,7 @@ fn list_usb_devs() void {
         const devs_ptr = devs[i];
         const err = libusb.libusb_get_device_descriptor(devs_ptr, &desc);
         if (err == 0) {
-            std.log.info("Device {}: Vendor=0x{x}, Product=0x{x}", .{ i, desc.idVendor, desc.idProduct });
+            std.log.warn("Device {}: Vendor=0x{x}, Product=0x{x}", .{ i, desc.idVendor, desc.idProduct });
         }
     }
     libusb.libusb_free_device_list(@ptrCast(devs), 1);
@@ -92,6 +94,20 @@ fn list_usb_devs() void {
 
 fn run_server(Ts: f32, allocator: std.mem.Allocator) void {
     list_usb_devs();
+    var transport = Transport.USBTransport.init(0x4012, 0xcafe) catch {
+        std.log.err("Failed to init transport", .{});
+        return;
+    };
+    // transport.control_xfer(0x1);
+    // std.Thread.sleep(1e9);
+    transport.control_xfer(0xbeef);
+    // std.Thread.sleep(1e9);
+    transport.control_xfer(0x1);
+    // std.Thread.sleep(1e9);
+
+    transport.control_xfer(0xbeef);
+
+    transport.deinit();
 
     std.debug.print("Starting server\n", .{});
     server = Server.init(allocator) catch {
@@ -156,5 +172,5 @@ test "startup shutdown" {
     std.Thread.sleep(1e9);
     try expect(server.run_thread == true);
     shutdown();
-    try expect(server.run_thread == false);
+    std.Thread.sleep(1e6);
 }

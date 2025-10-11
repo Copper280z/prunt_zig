@@ -71,11 +71,11 @@ pub fn build(b: *std.Build) void {
     });
     const libusb_mod = libusb.addModule("libusb");
     lib.root_module.addImport("libusb", libusb_mod);
-
+    const libusb_obj = libusb_dep.artifact("usb");
     // This declares intent for the library to be installed into the standard
     // location when the user invokes the "install" step (the default step when
     // running `zig build`).
-    b.installArtifact(libusb_dep.artifact("usb"));
+    b.installArtifact(libusb_obj);
     b.installArtifact(lib);
 
     // Creates a step for unit testing. This only builds the test executable
@@ -83,6 +83,13 @@ pub fn build(b: *std.Build) void {
     const lib_unit_tests = b.addTest(.{
         .root_module = lib_mod,
     });
+
+    lib_unit_tests.linkSystemLibrary("glfw");
+    lib_unit_tests.linkSystemLibrary("GL");
+    lib_unit_tests.linkSystemLibrary("X11");
+    lib_unit_tests.linkSystemLibrary("libudev");
+    lib_unit_tests.linkLibrary(libusb_obj);
+    lib_unit_tests.root_module.addImport("libusb", libusb_mod);
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
 
