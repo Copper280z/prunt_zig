@@ -93,21 +93,21 @@ fn list_usb_devs() void {
 }
 
 fn run_server(Ts: f32, allocator: std.mem.Allocator) void {
-    list_usb_devs();
-    var transport = Transport.USBTransport.init(0x4012, 0xcafe) catch {
-        std.log.err("Failed to init transport", .{});
-        return;
-    };
+    // list_usb_devs();
+    // var transport = Transport.USBTransport.init(0x4012, 0xcafe) catch {
+    //     std.log.err("Failed to init transport", .{});
+    //     return;
+    // };
+    // // transport.control_xfer(0x1);
+    // // std.Thread.sleep(1e9);
+    // transport.control_xfer(0xbeef);
+    // // std.Thread.sleep(1e9);
     // transport.control_xfer(0x1);
-    // std.Thread.sleep(1e9);
-    transport.control_xfer(0xbeef);
-    // std.Thread.sleep(1e9);
-    transport.control_xfer(0x1);
-    // std.Thread.sleep(1e9);
+    // // std.Thread.sleep(1e9);
 
-    transport.control_xfer(0xbeef);
+    // transport.control_xfer(0xbeef);
 
-    transport.deinit();
+    // transport.deinit();
 
     std.debug.print("Starting server\n", .{});
     server = Server.init(allocator) catch {

@@ -26,7 +26,7 @@ with Prunt.Controller;
 with Prunt.Controller_Generic_Types;
 with Prunt.TMC_Types.TMC2240; use Prunt.TMC_Types.TMC2240;
 with Prunt.TMC_Types;         use Prunt.TMC_Types;
-with Prunt.Heaters;
+with Ada.Streams;
 --  with Interfaces.C;
 
 procedure Prunt_Simulator is
@@ -41,6 +41,8 @@ procedure Prunt_Simulator is
 
    type Board_Temperature_Probe_Name is (Hotend, Bed);
 
+   type Empty_Enum is new Boolean range True .. False;
+   
    package My_Controller_Generic_Types is new
      Prunt.Controller_Generic_Types
        (Stepper_Name                 => Stepper_Name,
@@ -48,7 +50,8 @@ procedure Prunt_Simulator is
         Thermistor_Name              => Heater_Name,
         Board_Temperature_Probe_Name => Board_Temperature_Probe_Name,
         Fan_Name                     => Fan_Name,
-        Input_Switch_Name            => Stepper_Name);
+        Input_Switch_Name            => Stepper_Name,
+        Laser_Name                   => Empty_Enum);
 
    use My_Controller_Generic_Types;
 
@@ -57,12 +60,12 @@ procedure Prunt_Simulator is
       Thermistors        : Thermistor_Parameters_Array_Type)
    is null;
    procedure Reconfigure_Heater
-     (Heater : Heater_Name; Params : Prunt.Heaters.Heater_Parameters)
+     (Heater : Heater_Name; Params : Prunt.Heater_Parameters)
    is null;
    procedure Reconfigure_Fan (Fan : Fan_Name; PWM_Freq : Fan_PWM_Frequency)
    is null;
    procedure Autotune_Heater
-     (Heater : Heater_Name; Params : Prunt.Heaters.Heater_Parameters)
+     (Heater : Heater_Name; Params : Prunt.Heater_Parameters)
    is null;
    procedure Setup_For_Loop_Move (Switch : Stepper_Name; Hit_State : Pin_State)
    is null;
@@ -119,32 +122,55 @@ procedure Prunt_Simulator is
       Disable_Stepper_C (StepperToCInt (Stepper));
    end Disable_Stepper;
 
-   procedure Shutdown is
+   procedure Reset is
    begin
       Shutdown_C;
-   end Shutdown;
+   end Reset;
+
+   function Get_Extra_HTTP_Content (Name : String) return access constant Ada.Streams.Stream_Element_Array is
+   begin
+      return null;
+   end Get_Extra_HTTP_Content;
+
+
+   function Get_Board_Specific_Documentation (Name : String) return String is
+   --  Stepper_Text : String := "";
+   --  EndStop_Text : String := "";
+   begin
+   return "";
+   end Get_Board_Specific_Documentation;
+
+   Max_Fan_Frequency  : constant Frequency := 25_000.0 * hertz;
 
    package My_Controller is new
      Prunt.Controller
-       (Generic_Types              => My_Controller_Generic_Types,
-        Stepper_Hardware           =>
+      (Generic_Types              => My_Controller_Generic_Types,
+         Stepper_Hardware           =>
           [others =>
              (Kind            => Basic_Kind,
               Enable_Stepper  => Enable_Stepper'Access,
-              Disable_Stepper => Disable_Stepper'Access)],
-        Interpolation_Time         => 0.000_1 * s,
-        Loop_Interpolation_Time    => 0.000_1 * s,
-        Setup                      => Setup,
-        Reconfigure_Heater         => Reconfigure_Heater,
-        Reconfigure_Fan            => Reconfigure_Fan,
-        Autotune_Heater            => Autotune_Heater,
-        Setup_For_Loop_Move        => Setup_For_Loop_Move,
-        Setup_For_Conditional_Move => Setup_For_Conditional_Move,
-        Enqueue_Command            => Enqueue_Command,
-        Reset_Position             => Reset_Position,
-        Wait_Until_Idle            => Wait_Until_Idle,
-        Shutdown                   => Shutdown,
-        Config_Path                => "./prunt_sim.json");
+              Disable_Stepper => Disable_Stepper'Access,
+              Maximum_Delta_Per_Command => Dimensionless(10_000) )],
+         --  Heater_Hardware            => null,
+         Fan_Hardware               => [others =>
+             (Kind                            => Fixed_Switching_Kind,
+              Reconfigure_Fixed_Switching_Fan => Reconfigure_Fan'Access,
+              Maximum_PWM_Frequency           => Max_Fan_Frequency)],
+         Interpolation_Time         => 0.000_1 * s,
+         Loop_Interpolation_Time    => 0.000_1 * s,
+         Setup                      => Setup,
+         Reconfigure_Heater         => Reconfigure_Heater,
+         Autotune_Heater            => Autotune_Heater,
+         Setup_For_Loop_Move        => Setup_For_Loop_Move,
+         Setup_For_Conditional_Move => Setup_For_Conditional_Move,
+         Enqueue_Command            => Enqueue_Command,
+         Reset_Position             => Reset_Position,
+         Wait_Until_Idle            => Wait_Until_Idle,
+         Reset                      => Reset,
+         Get_Extra_HTTP_Content     => Get_Extra_HTTP_Content,
+         Get_Board_Specific_Documentation    => Get_Board_Specific_Documentation,
+         Update_Check         => (Method => None),
+         Config_Path                => "./prunt_sim.json");
 
    procedure Enqueue_Command (Command : Queued_Command) is
       --  Should use double precision here for best numerical stability with high order derivatives
