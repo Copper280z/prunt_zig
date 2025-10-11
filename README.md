@@ -4,6 +4,9 @@
   - run `alr with are` to install a dependency
   - make sure npm is installed
   - `alr build`
+# System Dependencies (Ubuntu 24.04)
+  - libudev-dev
+  - libglfw3-dev
 
 # Implementing from a language other than Ada
 Ada seems interesting, but it's also very different and not so easy to hop into and be productive right away. We want to print NOW, right? So it'd be great to just write the implementation in a language we're familiar with. Luckily we can make Ada bindings for C functions without much effort. Pretty much every language can produce functions with the C calling convention.

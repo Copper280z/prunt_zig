@@ -37,7 +37,7 @@
     // internet connectivity.
     .dependencies = .{
         .nanovg = .{
-            .url = "https://github.com/fabioarnold/nanovg-zig/archive/refs/heads/main.tar.gz",
+            .url = "git+https://github.com/fabioarnold/nanovg-zig.git#5a26c03f3acc3c3d7610108bd2c6663500296718",
             .hash = "1220757eb308a1033f5d33d3d516d504b649f83bf1562f819d06c3f8e24d790c2d00",
         },
         .zzplot = .{
