@@ -12,9 +12,9 @@ const Transport = @import("transport.zig");
 const AxisMoveCmd = types.AxisMoveCmd;
 const MoveCmd = types.MoveCmd;
 
-// pub const std_options: std.Options = .{
-//     .log_level = .debug,
-// };
+pub const std_options: std.Options = .{
+    .log_level = .info,
+};
 
 var gpa = *std.heap.GeneralPurposeAllocator(.{});
 const Diff = diff.BinomialDerivator(6);
@@ -25,10 +25,12 @@ const Server = struct {
     differ: [4]Diff = undefined,
     Ts: f32 = 0.0001,
     run_thread: bool = false,
+    transport: Transport.USBTransport,
     pub fn init(allocator: std.mem.Allocator) !*@This() {
         var ret = try allocator.create(@This());
         ret.move_queue = std.fifo.LinearFifo(MoveCmd, .Dynamic).init(allocator);
         ret.alloc = allocator;
+        ret.transport = try Transport.USBTransport.init(0x4011, 0xcafe);
         return ret;
     }
     pub fn run(self: *@This()) void {
@@ -36,6 +38,13 @@ const Server = struct {
         while (self.run_thread) {
             std.log.info("Running main server thread", .{});
             std.Thread.sleep(1e9);
+            const msg: [3]u8 = .{ 49, 1, 3 };
+            const maybe_sent = self.transport.bulk_transfer_send(&msg);
+            if (maybe_sent) |s| {
+                std.log.info("Sent {} bytes via bulk transfer\n", .{s});
+            } else |err| {
+                _ = err;
+            }
         }
         std.log.info("We're done", .{});
     }
@@ -59,7 +68,7 @@ const Server = struct {
     }
 };
 
-var server: *Server = undefined;
+var server: ?*Server = undefined;
 
 fn list_usb_devs() void {
     std.log.info("Enumerating usb devices", .{});
@@ -112,14 +121,22 @@ fn run_server(Ts: f32, allocator: std.mem.Allocator) void {
     std.debug.print("Starting server\n", .{});
     server = Server.init(allocator) catch {
         std.log.err("Failed to allocate Server", .{});
+        std.debug.print("Server thread done\n", .{});
+        // const w = std.io.getStdErr().writer();
+        // std.Thread.sleep(1e9);
         return;
     };
-    server.Ts = Ts;
-    for (&server.differ) |*d| {
-        d.* = Diff.init(Ts);
+    if (server) |s| {
+        s.Ts = Ts;
+        for (&s.differ) |*d| {
+            d.* = Diff.init(Ts);
+        }
+        s.run_thread = true;
+        s.run();
     }
-    server.run_thread = true;
-    server.run();
+    std.debug.print("Server thread done\n", .{});
+    std.log.info("Done\n", .{});
+    std.Thread.sleep(1e9);
 }
 
 pub export fn enable_stepper(axis: i32) callconv(.C) void {
@@ -132,20 +149,22 @@ pub export fn disable_stepper(axis: i32) callconv(.C) void {
 pub export fn enqueue_command(x: f64, y: f64, z: f64, e: f64, index: i32, safe_stop: i32) callconv(.C) void {
     _ = index;
     std.log.warn("Move cmd: X={} Y={} Z={}, E={}", .{ x, y, z, e });
-    const X = server.GetDerivative(x, 0);
-    const Y = server.GetDerivative(y, 1);
-    const Z = server.GetDerivative(z, 2);
-    const E = server.GetDerivative(e, 3);
+    if (server) |s| {
+        const X = s.GetDerivative(x, 0);
+        const Y = s.GetDerivative(y, 1);
+        const Z = s.GetDerivative(z, 2);
+        const E = s.GetDerivative(e, 3);
 
-    server.EnqueueMove(.{
-        .X = X,
-        .Y = Y,
-        .Z = Z,
-        .E = E,
-    });
-    if (safe_stop != 0) {
-        std.log.warn("Safe Stop here", .{});
-        server.Plot();
+        s.EnqueueMove(.{
+            .X = X,
+            .Y = Y,
+            .Z = Z,
+            .E = E,
+        });
+        if (safe_stop != 0) {
+            std.log.warn("Safe Stop here", .{});
+            s.Plot();
+        }
     }
 }
 
@@ -167,10 +186,14 @@ pub export fn shutdown() callconv(.C) void {
 }
 
 test "startup shutdown" {
+    std.testing.log_level = .debug;
     const expect = std.testing.expect;
     configure(1e-4);
-    std.Thread.sleep(1e9);
-    try expect(server.run_thread == true);
-    shutdown();
-    std.Thread.sleep(1e6);
+    if (server) |s| {
+        std.Thread.sleep(1e9);
+        try expect(s.run_thread == true);
+        shutdown();
+    }
+    std.Thread.sleep(2e9);
+    std.debug.print("Done!\n", .{});
 }

@@ -1,5 +1,9 @@
 const std = @import("std");
 
+const Cmd = union(enum) {
+    Move: MoveCmd, //
+};
+
 pub const Axis = enum { X, Y, Z, E };
 
 pub const AxisMoveCmd = struct {

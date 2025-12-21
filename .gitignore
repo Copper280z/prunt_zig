@@ -11,3 +11,8 @@
 *.json_backup*
 *.code-workspace
 *.vscode/
+.cache/
+compile_commands.json
+*/build/*
+sync_log.csv
+sync_host
