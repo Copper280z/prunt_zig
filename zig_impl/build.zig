@@ -93,9 +93,27 @@ pub fn build(b: *std.Build) void {
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
 
+    const usb_mod = b.addModule("usb", .{
+        .root_source_file = b.path("src/usb.zig"),
+    });
+
+    const usb_tests = b.addTest(.{
+        .root_source_file = b.path("src/test_usb.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    usb_tests.root_module.addImport("libusb", libusb_mod);
+    usb_tests.root_module.addImport("usb", usb_mod);
+    usb_tests.linkSystemLibrary("usb-1.0");
+
+    const run_usb_tests = b.addRunArtifact(usb_tests);
+
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
+    // _ = run_lib_unit_tests;
+    test_step.dependOn(&run_usb_tests.step);
 }
