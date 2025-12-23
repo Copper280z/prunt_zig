@@ -12,10 +12,16 @@ PB_BIND(AxisMoveCmd, AxisMoveCmd, AUTO)
 PB_BIND(MoveCmd, MoveCmd, AUTO)
 
 
+PB_BIND(Moves, Moves, 2)
+
+
 PB_BIND(SetPID, SetPID, AUTO)
 
 
-PB_BIND(Cmd, Cmd, AUTO)
+PB_BIND(SetParams, SetParams, AUTO)
+
+
+PB_BIND(Cmd, Cmd, 2)
 
 
 

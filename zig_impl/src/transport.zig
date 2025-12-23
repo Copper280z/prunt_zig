@@ -58,6 +58,7 @@ pub const USBTransport = struct {
             }
         };
 
+        // needs root?
         // handle.claimInterface(self.vendor_if_num) catch |e| {
         //     std.log.err("Failed to claim interface: {}\n", .{e});
         //     return USBError.Error;
@@ -74,16 +75,16 @@ pub const USBTransport = struct {
     }
     fn find_endpoints(self: *@This()) void {
         _ = self;
-        //
+        // find the vendor bulk endpoints
     }
     pub fn control_xfer(self: *@This(), wValue: u16) void {
-        var buf: [64]u8 = undefined;
+        var buf: [64]u8 = undefined; // some bs to send
         buf[0] = 42;
         buf[1] = 43;
         buf[2] = 44;
         buf[3] = 45;
         const wIndex: u16 = 0;
-        const bRequest: u8 = 42; // application specific unless req type is LIBUSB_REQUEST_TYPE_STANDARD
+        const bRequest: u8 = 42; // application specific unless req type is LIBUSB_REQUEST_TYPE_STANDARD, so free to use
         const timeout = 100;
         self.dev.controlOut(.vendor, .endpoint, bRequest, wValue, wIndex, buf, timeout) catch |e| {
             std.log.err("control xfer error: {}\n", .{e});
@@ -155,27 +156,28 @@ pub const USBTransport = struct {
     pub fn send_move(self: *@This(), msg: types.MoveCmd) !void {
         _ = self;
         std.debug.print("***************************************\n", .{});
-        std.debug.print("***************************************\n", .{});
-        std.debug.print("msg: {any}\n", .{msg});
+
         var cmd: nanopb.Cmd = undefined;
-        cmd.which_payload = nanopb.Cmd_move_tag;
-        cmd.payload.move = zig_move_to_pb(msg);
-        var buf: [2 * @sizeOf(types.MoveCmd)]u8 = undefined;
+        cmd.which_payload = nanopb.Cmd_moves_tag;
+        cmd.payload.moves.move_count = 1;
+        cmd.payload.moves.move[0] = zig_move_to_pb(msg);
+        var buf: [nanopb.Cmd_size]u8 = undefined;
         var stream = nanopb.pb_ostream_from_buffer(@ptrCast(@constCast(buf[0..].ptr)), buf.len);
-        const status = nanopb.pb_encode(@constCast(&stream), nanopb.Cmd_fields, &cmd);
+        const status = nanopb.pb_encode_ex(@constCast(&stream), nanopb.Cmd_fields, &cmd, nanopb.PB_ENCODE_DELIMITED);
         if (!status) {
             std.log.err("Failed to encode pb: {}\n", .{status});
             return USBError.Error;
         }
-        std.debug.print("msg size: {}\n", .{@bitSizeOf(types.MoveCmd) / 8});
-        std.debug.print("bytes encoded: {}\n", .{stream.bytes_written});
 
+        std.debug.print("msg size: {}, bytes encoded: {}\n", .{ @bitSizeOf(types.MoveCmd) / 8, stream.bytes_written });
+
+        // read the message back for debugging
         var istream = nanopb.pb_istream_from_buffer(@ptrCast(@constCast(buf[0..].ptr)), stream.bytes_written);
         var recv_cmd: nanopb.Cmd = undefined;
-        const status2 = nanopb.pb_decode(@constCast(&istream), nanopb.Cmd_fields, &recv_cmd);
+        const status2 = nanopb.pb_decode_ex(@constCast(&istream), nanopb.Cmd_fields, &recv_cmd, nanopb.PB_DECODE_DELIMITED);
 
-        const tcmd = pb_move_to_zig(cmd.payload.move);
-        const rcmd = pb_move_to_zig(recv_cmd.payload.move);
+        const tcmd = pb_move_to_zig(cmd.payload.moves.move[0]);
+        const rcmd = pb_move_to_zig(recv_cmd.payload.moves.move[0]);
 
         if (!status2) {
             std.log.err("Failed to decode pb: {}\n", .{status2});

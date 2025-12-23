@@ -30,6 +30,11 @@ typedef struct _MoveCmd {
     AxisMoveCmd e;
 } MoveCmd;
 
+typedef struct _Moves {
+    pb_size_t move_count;
+    MoveCmd move[3];
+} Moves;
+
 typedef struct _SetPID {
     int32_t axis;
     float p;
@@ -38,10 +43,19 @@ typedef struct _SetPID {
     float tf;
 } SetPID;
 
+typedef struct _SetParams {
+    int32_t axis;
+    float phase_r;
+    float phase_l;
+    float enoder_cpr;
+    float counts_per_mm;
+} SetParams;
+
 typedef struct _Cmd {
     pb_size_t which_payload;
     union _Cmd_payload {
-        MoveCmd move;
+        Moves moves;
+        SetParams axis_params;
         SetPID setpid;
     } payload;
 } Cmd;
@@ -54,12 +68,16 @@ extern "C" {
 /* Initializer values for message structs */
 #define AxisMoveCmd_init_default                 {0, 0, 0, 0, 0, 0}
 #define MoveCmd_init_default                     {false, AxisMoveCmd_init_default, false, AxisMoveCmd_init_default, false, AxisMoveCmd_init_default, false, AxisMoveCmd_init_default}
+#define Moves_init_default                       {0, {MoveCmd_init_default, MoveCmd_init_default, MoveCmd_init_default}}
 #define SetPID_init_default                      {0, 0, 0, 0, 0}
-#define Cmd_init_default                         {0, {MoveCmd_init_default}}
+#define SetParams_init_default                   {0, 0, 0, 0, 0}
+#define Cmd_init_default                         {0, {Moves_init_default}}
 #define AxisMoveCmd_init_zero                    {0, 0, 0, 0, 0, 0}
 #define MoveCmd_init_zero                        {false, AxisMoveCmd_init_zero, false, AxisMoveCmd_init_zero, false, AxisMoveCmd_init_zero, false, AxisMoveCmd_init_zero}
+#define Moves_init_zero                          {0, {MoveCmd_init_zero, MoveCmd_init_zero, MoveCmd_init_zero}}
 #define SetPID_init_zero                         {0, 0, 0, 0, 0}
-#define Cmd_init_zero                            {0, {MoveCmd_init_zero}}
+#define SetParams_init_zero                      {0, 0, 0, 0, 0}
+#define Cmd_init_zero                            {0, {Moves_init_zero}}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define AxisMoveCmd_pos_tag                      1
@@ -72,13 +90,20 @@ extern "C" {
 #define MoveCmd_y_tag                            2
 #define MoveCmd_z_tag                            3
 #define MoveCmd_e_tag                            4
+#define Moves_move_tag                           1
 #define SetPID_axis_tag                          1
 #define SetPID_p_tag                             2
 #define SetPID_i_tag                             3
 #define SetPID_d_tag                             4
 #define SetPID_tf_tag                            5
-#define Cmd_move_tag                             1
-#define Cmd_setpid_tag                           2
+#define SetParams_axis_tag                       1
+#define SetParams_phase_r_tag                    2
+#define SetParams_phase_l_tag                    3
+#define SetParams_enoder_cpr_tag                 4
+#define SetParams_counts_per_mm_tag              5
+#define Cmd_moves_tag                            1
+#define Cmd_axis_params_tag                      2
+#define Cmd_setpid_tag                           3
 
 /* Struct field encoding specification for nanopb */
 #define AxisMoveCmd_FIELDLIST(X, a) \
@@ -103,6 +128,12 @@ X(a, STATIC,   OPTIONAL, MESSAGE,  e,                 4)
 #define MoveCmd_z_MSGTYPE AxisMoveCmd
 #define MoveCmd_e_MSGTYPE AxisMoveCmd
 
+#define Moves_FIELDLIST(X, a) \
+X(a, STATIC,   REPEATED, MESSAGE,  move,              1)
+#define Moves_CALLBACK NULL
+#define Moves_DEFAULT NULL
+#define Moves_move_MSGTYPE MoveCmd
+
 #define SetPID_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, INT32,    axis,              1) \
 X(a, STATIC,   SINGULAR, FLOAT,    p,                 2) \
@@ -112,31 +143,48 @@ X(a, STATIC,   SINGULAR, FLOAT,    tf,                5)
 #define SetPID_CALLBACK NULL
 #define SetPID_DEFAULT NULL
 
+#define SetParams_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, INT32,    axis,              1) \
+X(a, STATIC,   SINGULAR, FLOAT,    phase_r,           2) \
+X(a, STATIC,   SINGULAR, FLOAT,    phase_l,           3) \
+X(a, STATIC,   SINGULAR, FLOAT,    enoder_cpr,        4) \
+X(a, STATIC,   SINGULAR, FLOAT,    counts_per_mm,     5)
+#define SetParams_CALLBACK NULL
+#define SetParams_DEFAULT NULL
+
 #define Cmd_FIELDLIST(X, a) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (payload,move,payload.move),   1) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (payload,setpid,payload.setpid),   2)
+X(a, STATIC,   ONEOF,    MESSAGE,  (payload,moves,payload.moves),   1) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (payload,axis_params,payload.axis_params),   2) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (payload,setpid,payload.setpid),   3)
 #define Cmd_CALLBACK NULL
 #define Cmd_DEFAULT NULL
-#define Cmd_payload_move_MSGTYPE MoveCmd
+#define Cmd_payload_moves_MSGTYPE Moves
+#define Cmd_payload_axis_params_MSGTYPE SetParams
 #define Cmd_payload_setpid_MSGTYPE SetPID
 
 extern const pb_msgdesc_t AxisMoveCmd_msg;
 extern const pb_msgdesc_t MoveCmd_msg;
+extern const pb_msgdesc_t Moves_msg;
 extern const pb_msgdesc_t SetPID_msg;
+extern const pb_msgdesc_t SetParams_msg;
 extern const pb_msgdesc_t Cmd_msg;
 
 /* Defines for backwards compatibility with code written before nanopb-0.4.0 */
 #define AxisMoveCmd_fields &AxisMoveCmd_msg
 #define MoveCmd_fields &MoveCmd_msg
+#define Moves_fields &Moves_msg
 #define SetPID_fields &SetPID_msg
+#define SetParams_fields &SetParams_msg
 #define Cmd_fields &Cmd_msg
 
 /* Maximum encoded size of messages (where known) */
 #define AxisMoveCmd_size                         30
-#define Cmd_size                                 131
+#define Cmd_size                                 396
 #define MESSAGES_PB_H_MAX_SIZE                   Cmd_size
 #define MoveCmd_size                             128
+#define Moves_size                               393
 #define SetPID_size                              31
+#define SetParams_size                           31
 
 #ifdef __cplusplus
 } /* extern "C" */

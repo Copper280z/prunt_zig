@@ -11,10 +11,22 @@ message AxisMoveCmd {
 }
 
 message MoveCmd {
-    optional AxisMoveCmd x = 1;
-    optional AxisMoveCmd y = 2;
-    optional AxisMoveCmd z = 3;
-    optional AxisMoveCmd e = 4;
+    AxisMoveCmd x = 1;
+    AxisMoveCmd y = 2;
+    AxisMoveCmd z = 3;
+    AxisMoveCmd e = 4;
+}
+
+message Moves {
+    repeated MoveCmd move = 1 [(nanopb).max_count = 3];
+}
+
+message ConfigSystem {
+    float timestep = 1;
+    int32 x_axis_idx = 2;
+    int32 y_axis_idx = 3;
+    int32 z_axis_idx = 4;
+    int32 e_axis_idx = 5;
 }
 
 message SetPID {
@@ -25,9 +37,19 @@ message SetPID {
     float tf = 5;
 }
 
+message SetParams {
+    int32 axis = 1;
+    float phase_r = 2;
+    float phase_l = 3;
+    float enoder_cpr = 4;
+    float counts_per_mm = 5;
+}
+
 message Cmd {
     oneof payload {
-        MoveCmd move = 1;
-        SetPID setpid = 2;
+        Moves moves = 1;
+        SetParams axis_params = 2;
+        SetPID setpid = 3;
+        ConfigSystem config_system = 4;
     }
 }
