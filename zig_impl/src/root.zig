@@ -6,7 +6,6 @@ const testing = std.testing;
 const types = @import("types.zig");
 const plt = @import("plot.zig");
 const diff = @import("diff.zig");
-const libusb = @import("libusb");
 const Transport = @import("transport.zig");
 
 const AxisMoveCmd = types.AxisMoveCmd;
@@ -35,15 +34,20 @@ const Server = struct {
     }
     pub fn run(self: *@This()) void {
         std.log.info("Starting server", .{});
+        const msg: [3]u8 = .{ 49, 1, 3 };
+        const maybe_sent = self.transport.bulk_transfer_send(&msg);
+        if (maybe_sent) |s| {
+            std.log.info("Sent {} bytes via bulk transfer\n", .{s});
+        } else |err| {
+            std.log.info("Error in bulk transfer: {any}\n", .{err});
+        }
         while (self.run_thread) {
-            std.log.info("Running main server thread", .{});
-            std.Thread.sleep(1e9);
-            const msg: [3]u8 = .{ 49, 1, 3 };
-            const maybe_sent = self.transport.bulk_transfer_send(&msg);
-            if (maybe_sent) |s| {
-                std.log.info("Sent {} bytes via bulk transfer\n", .{s});
-            } else |err| {
-                _ = err;
+            // std.log.info("Running main server thread", .{});
+            while (self.move_queue.readItem()) |cmd| {
+                std.log.info("Processing move command: {}", .{cmd});
+                self.transport.send_move(cmd) catch {
+                    std.log.err("Failed to send move command", .{});
+                };
             }
         }
         std.log.info("We're done", .{});
@@ -64,74 +68,22 @@ const Server = struct {
     pub fn GetDerivative(self: *@This(), val: f64, axis: u4) AxisMoveCmd {
         const xdiff = self.differ[axis].calc(val);
         const cmd: AxisMoveCmd = .{ .pos = @floatCast(xdiff[0]), .vel = @floatCast(xdiff[1]), .acc = @floatCast(xdiff[2]), .jerk = @floatCast(xdiff[3]), .snap = @floatCast(xdiff[4]), .crackle = @floatCast(xdiff[5]) };
+        std.debug.print("axis {}: derivative: {}\n", .{ axis, cmd });
         return cmd;
     }
 };
 
 var server: ?*Server = undefined;
 
-fn list_usb_devs() void {
-    std.log.info("Enumerating usb devices", .{});
-    var ctx: ?*libusb.libusb_context = undefined;
-    const r = libusb.libusb_init(&ctx);
-    if (r < 0) {
-        std.log.err("Initialization error {}\n", .{r});
-        return;
-    }
-
-    var devs: [*c]*libusb.libusb_device = undefined;
-    const dev_count = libusb.libusb_get_device_list(ctx, &devs);
-    if (dev_count < 0) {
-        std.log.err("Error in get device list\n", .{});
-        libusb.libusb_exit(ctx);
-        return;
-    }
-
-    std.log.info("{} Devices found", .{dev_count});
-    for (0..@intCast(dev_count)) |i| {
-        var desc: libusb.libusb_device_descriptor = undefined;
-
-        const devs_ptr = devs[i];
-        const err = libusb.libusb_get_device_descriptor(devs_ptr, &desc);
-        if (err == 0) {
-            std.log.warn("Device {}: Vendor=0x{x}, Product=0x{x}", .{ i, desc.idVendor, desc.idProduct });
-        }
-    }
-    libusb.libusb_free_device_list(@ptrCast(devs), 1);
-    libusb.libusb_exit(ctx);
-}
-
 fn run_server(Ts: f32, allocator: std.mem.Allocator) void {
-    // list_usb_devs();
-    // var transport = Transport.USBTransport.init(0x4012, 0xcafe) catch {
-    //     std.log.err("Failed to init transport", .{});
-    //     return;
-    // };
-    // // transport.control_xfer(0x1);
-    // // std.Thread.sleep(1e9);
-    // transport.control_xfer(0xbeef);
-    // // std.Thread.sleep(1e9);
-    // transport.control_xfer(0x1);
-    // // std.Thread.sleep(1e9);
-
-    // transport.control_xfer(0xbeef);
-
-    // transport.deinit();
-
-    std.debug.print("Starting server\n", .{});
-    server = Server.init(allocator) catch {
-        std.log.err("Failed to allocate Server", .{});
-        std.debug.print("Server thread done\n", .{});
-        // const w = std.io.getStdErr().writer();
-        // std.Thread.sleep(1e9);
-        return;
-    };
+    _ = allocator;
     if (server) |s| {
         s.Ts = Ts;
         for (&s.differ) |*d| {
             d.* = Diff.init(Ts);
         }
         s.run_thread = true;
+        std.log.info("running server loop\n", .{});
         s.run();
     }
     std.debug.print("Server thread done\n", .{});
@@ -168,12 +120,20 @@ pub export fn enqueue_command(x: f64, y: f64, z: f64, e: f64, index: i32, safe_s
     }
 }
 
+// TODO: make allocator configurable
 pub export fn configure(interp_time: f32) callconv(.C) void {
+    const allocator = std.heap.c_allocator;
     std.log.info("Configuring Server:", .{});
     std.log.info("Interepolation time: {}", .{interp_time});
     var thread_config = std.Thread.SpawnConfig{};
-    thread_config.allocator = std.heap.c_allocator;
-    const thread = std.Thread.spawn(thread_config, run_server, .{ interp_time, std.heap.c_allocator }) catch {
+    thread_config.allocator = allocator;
+
+    std.debug.print("Starting server\n", .{});
+    server = Server.init(allocator) catch |err| {
+        std.log.err("Failed to allocate Server: {any}", .{err});
+        return;
+    };
+    const thread = std.Thread.spawn(thread_config, run_server, .{ interp_time, allocator }) catch {
         std.log.err("Server thread failed to start!:", .{});
         return;
     };
@@ -192,7 +152,16 @@ test "startup shutdown" {
     if (server) |s| {
         std.Thread.sleep(1e9);
         try expect(s.run_thread == true);
+        for (0..50) |_i| {
+            const i: f64 = @floatFromInt(_i);
+            std.debug.print("enqueue_command!\n", .{});
+            enqueue_command(i * 1.0, i * i * 2.0, i * i * i * 3.0, i * 4.0, 0, 0);
+        }
         shutdown();
+        s.run_thread = false;
+    } else {
+        std.debug.print("Server is null\n", .{});
+        try expect(false);
     }
     std.Thread.sleep(2e9);
     std.debug.print("Done!\n", .{});

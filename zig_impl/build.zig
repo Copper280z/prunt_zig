@@ -72,6 +72,31 @@ pub fn build(b: *std.Build) void {
     const libusb_mod = libusb.addModule("libusb");
     lib.root_module.addImport("libusb", libusb_mod);
     const libusb_obj = libusb_dep.artifact("usb");
+
+    const nanopb_generator = b.addSystemCommand(&.{"python3"});
+    nanopb_generator.addArgs(&.{
+        "./nanopb/generator/nanopb_generator.py",
+        "--strip-path",
+        "-L#include \"%s\"",
+        "src/proto/messages.proto",
+    });
+
+    const nanopb_translate = b.addTranslateC(.{
+        .root_source_file = b.path("src/proto/nanopb.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    nanopb_translate.step.dependOn(&nanopb_generator.step);
+    const nanopb = nanopb_translate.addModule("nanopb");
+    nanopb.addCSourceFiles(.{
+        .root = b.path("src/proto"),
+        .files = &.{ "pb_common.c", "pb_decode.c", "pb_encode.c", "messages.pb.c" },
+        .flags = &.{},
+    });
+    nanopb.addIncludePath(b.path("src/proto/"));
+
+    lib.root_module.addImport("nanopb", nanopb);
+
     // This declares intent for the library to be installed into the standard
     // location when the user invokes the "install" step (the default step when
     // running `zig build`).

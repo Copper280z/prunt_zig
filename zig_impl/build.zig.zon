@@ -44,10 +44,6 @@
             .url = "git+https://github.com/Copper280z/zzplot.git#f24d664d2f529fc14c06f99c9e21b56d02faea1b",
             .hash = "zzplot-0.0.0-xdJumy_nowA4WD2WmXEOyrqtyq2GY3wjM9ceNxs3SYoi",
         },
-        .protobuf = .{
-            .url = "git+https://github.com/Arwalk/zig-protobuf.git#77161cbf10625fea90ee3bf6eee47e6b8c587845",
-            .hash = "protobuf-2.0.0-0e82akObGwBZQtrB7Qb6CTWSrwYKRPJ0M4L0CuTJmJ9G",
-        },
         .libusb = .{
             .url = "https://github.com/Copper280z/libusb/archive/refs/heads/0.14.0.tar.gz",
             .hash = "libusb-1.0.26-AAAAAKKoFwA3-w6L-cDzNUK-HoBottaS4kVuLmZ40eGg",

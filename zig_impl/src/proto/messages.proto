@@ -1,0 +1,33 @@
+syntax = "proto3";
+import "nanopb.proto";
+
+message AxisMoveCmd {
+     float pos = 1;
+     float vel = 2;
+     float acc = 3;
+     float jerk = 4;
+     float snap = 5;
+     float crackle = 6;
+}
+
+message MoveCmd {
+    optional AxisMoveCmd x = 1;
+    optional AxisMoveCmd y = 2;
+    optional AxisMoveCmd z = 3;
+    optional AxisMoveCmd e = 4;
+}
+
+message SetPID {
+    int32 axis = 1;
+    float p = 2;
+    float i = 3;
+    float d = 4;
+    float tf = 5;
+}
+
+message Cmd {
+    oneof payload {
+        MoveCmd move = 1;
+        SetPID setpid = 2;
+    }
+}
