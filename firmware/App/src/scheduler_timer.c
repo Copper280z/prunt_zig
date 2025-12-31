@@ -51,7 +51,6 @@ uint64_t scheduler_time_ns = 0;
 void scheduler_tick_handler(void) {
   // Do whatever periodic work you want here
   scheduler_time_ns += 1e6;
-  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_0);
   static uint32_t cnt = 0;
   if (cnt >= 10) {
     cnt = 0;

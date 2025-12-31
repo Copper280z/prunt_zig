@@ -100,6 +100,7 @@ static void handle_sync_resp(const sync_resp_t *resp) {
 // TinyUSB vendor RX callback
 void tud_vendor_rx_cb(uint8_t idx, const uint8_t *buffer, uint32_t bufsize) {
   // printf("Got vendor usb msg, buffer: %p, size: %ld\n", buffer, bufsize);
+  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_0);
 
   if (bufsize == 0)
     return;
@@ -122,4 +123,6 @@ void tud_vendor_rx_cb(uint8_t idx, const uint8_t *buffer, uint32_t bufsize) {
     g_host_ready = 1;
   }
   printf("Done with rx cb\n");
+    HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_0);
+
 }

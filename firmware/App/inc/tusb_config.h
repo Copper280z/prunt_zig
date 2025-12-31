@@ -48,7 +48,7 @@ extern "C" {
 #endif
 
 #ifndef CFG_TUSB_DEBUG
-#define CFG_TUSB_DEBUG 0
+#define CFG_TUSB_DEBUG 3
 #endif
 
 #ifndef CFG_TUD_LOG_LEVEL
@@ -107,7 +107,7 @@ extern "C" {
 
 #define CFG_TUD_VENDOR_RX_BUFSIZE 0
 #define CFG_TUD_VENDOR_TX_BUFSIZE 512
-// #define CFG_TUD_VENDOR_EP_BUFSIZE (TUD_OPT_HIGH_SPEED ? 512 : 64)
+#define CFG_TUD_VENDOR_EPSIZE 512
 
 #ifdef __cplusplus
 }
