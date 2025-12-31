@@ -15,6 +15,9 @@ PB_BIND(MoveCmd, MoveCmd, AUTO)
 PB_BIND(Moves, Moves, 2)
 
 
+PB_BIND(ConfigSystem, ConfigSystem, AUTO)
+
+
 PB_BIND(SetPID, SetPID, AUTO)
 
 

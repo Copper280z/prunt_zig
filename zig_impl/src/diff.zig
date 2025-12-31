@@ -53,7 +53,7 @@ pub fn BinomialDerivator(order: u8) type {
             }
         }
         pub fn calc(self: *@This(), val: f64) [order]f64 {
-            if (verbose) std.debug.print("\nval: {d:6.3}\n", .{val});
+            if (verbose) std.debug.print("\nval: {d:6.3}, count: {}, n_values: {}\n", .{ val, self.previous_vals.count, n_values });
             if (self.previous_vals.count >= n_values) {
                 self.previous_vals.discard(1);
             }

@@ -26,14 +26,14 @@ pub const USBError = error{
 pub const USBTransport = struct {
     ctx: usb.Context,
     dev: usb.DeviceHandle,
-    vendor_if_num: u8 = 8,
+    vendor_if_num: u8 = 2,
     vendor_ep_out: usb.EndpointAddress = .{ .number = 0x6, .direction = .out },
     vendor_ep_in: usb.EndpointAddress = .{ .number = 0x6, .direction = .in },
 
     pub fn init(pid: u16, vid: u16) !USBTransport {
         std.log.info("Initializiing USB Transport", .{});
 
-        // usb.Context.setLogLevel(0);
+        _ = usb.Context.setLogLevel(0);
 
         var ctx = try usb.Context.init();
         errdefer ctx.deinit();
@@ -58,12 +58,13 @@ pub const USBTransport = struct {
             }
         };
 
+        const ret: USBTransport = .{ .dev = handle, .ctx = ctx };
         // needs root?
-        // handle.claimInterface(self.vendor_if_num) catch |e| {
-        //     std.log.err("Failed to claim interface: {}\n", .{e});
-        //     return USBError.Error;
-        // };
-        return .{ .dev = handle, .ctx = ctx };
+        handle.claimInterface(ret.vendor_if_num) catch |e| {
+            std.log.err("Failed to claim interface: {}\n", .{e});
+            return USBError.Error;
+        };
+        return ret;
     }
     pub fn send(self: *@This(), msg: Cmd) !void {
         switch (msg) {
@@ -154,39 +155,45 @@ pub const USBTransport = struct {
     }
 
     pub fn send_move(self: *@This(), msg: types.MoveCmd) !void {
-        _ = self;
-        std.debug.print("***************************************\n", .{});
+        // _ = self;
+        // std.debug.print("***************************************\n", .{});
 
         var cmd: nanopb.Cmd = undefined;
         cmd.which_payload = nanopb.Cmd_moves_tag;
         cmd.payload.moves.move_count = 1;
         cmd.payload.moves.move[0] = zig_move_to_pb(msg);
         var buf: [nanopb.Cmd_size]u8 = undefined;
-        var stream = nanopb.pb_ostream_from_buffer(@ptrCast(@constCast(buf[0..].ptr)), buf.len);
+        const len: usize = buf.len;
+        var stream = nanopb.pb_ostream_from_buffer(@ptrCast(@constCast(buf[0..].ptr)), len);
         const status = nanopb.pb_encode_ex(@constCast(&stream), nanopb.Cmd_fields, &cmd, nanopb.PB_ENCODE_DELIMITED);
         if (!status) {
-            std.log.err("Failed to encode pb: {}\n", .{status});
+            std.log.err("Failed to encode pb: {s}", .{stream.errmsg});
             return USBError.Error;
         }
-
-        std.debug.print("msg size: {}, bytes encoded: {}\n", .{ @bitSizeOf(types.MoveCmd) / 8, stream.bytes_written });
-
+        // @memset(buf[0..len], 43);
+        std.log.info("msg size: {}, bytes encoded: {}\n", .{ @bitSizeOf(types.MoveCmd) / 8, stream.bytes_written });
+        _ = self.bulk_transfer_send(buf[0..stream.bytes_written]) catch |e| {
+            std.log.err("Failed to send move: {}\n", .{e});
+            return USBError.Error;
+        };
         // read the message back for debugging
-        var istream = nanopb.pb_istream_from_buffer(@ptrCast(@constCast(buf[0..].ptr)), stream.bytes_written);
-        var recv_cmd: nanopb.Cmd = undefined;
-        const status2 = nanopb.pb_decode_ex(@constCast(&istream), nanopb.Cmd_fields, &recv_cmd, nanopb.PB_DECODE_DELIMITED);
+        // var istream = nanopb.pb_istream_from_buffer(@ptrCast(@constCast(buf[0..].ptr)), stream.bytes_written);
+        // var recv_cmd: nanopb.Cmd = undefined;
+        // const status2 = nanopb.pb_decode_ex(@constCast(&istream), nanopb.Cmd_fields, &recv_cmd, nanopb.PB_DECODE_DELIMITED);
 
-        const tcmd = pb_move_to_zig(cmd.payload.moves.move[0]);
-        const rcmd = pb_move_to_zig(recv_cmd.payload.moves.move[0]);
+        // // const tcmd = pb_move_to_zig(cmd.payload.moves.move[0]);
+        // // const rcmd = pb_move_to_zig(recv_cmd.payload.moves.move[0]);
 
-        if (!status2) {
-            std.log.err("Failed to decode pb: {}\n", .{status2});
-        }
-        std.debug.print("trans_cmd: {any}\n", .{tcmd});
-        std.debug.print("recv_cmd: {any}\n", .{rcmd});
+        // if (!status2) {
+        //     std.log.err("Failed to decode pb: {}\n", .{status2});
+        // }
+
+        // std.debug.print("trans_cmd: {any}\n", .{tcmd});
+        // std.debug.print("recv_cmd: {any}\n", .{rcmd});
     }
 
     pub fn deinit(self: *@This()) void {
+        self.dev.releaseInterface(self.vendor_if_num);
         self.dev.close();
         self.ctx.deinit();
     }

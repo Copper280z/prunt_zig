@@ -35,6 +35,14 @@ typedef struct _Moves {
     MoveCmd move[3];
 } Moves;
 
+typedef struct _ConfigSystem {
+    float timestep;
+    int32_t x_axis_idx;
+    int32_t y_axis_idx;
+    int32_t z_axis_idx;
+    int32_t e_axis_idx;
+} ConfigSystem;
+
 typedef struct _SetPID {
     int32_t axis;
     float p;
@@ -57,6 +65,7 @@ typedef struct _Cmd {
         Moves moves;
         SetParams axis_params;
         SetPID setpid;
+        ConfigSystem config_system;
     } payload;
 } Cmd;
 
@@ -69,12 +78,14 @@ extern "C" {
 #define AxisMoveCmd_init_default                 {0, 0, 0, 0, 0, 0}
 #define MoveCmd_init_default                     {false, AxisMoveCmd_init_default, false, AxisMoveCmd_init_default, false, AxisMoveCmd_init_default, false, AxisMoveCmd_init_default}
 #define Moves_init_default                       {0, {MoveCmd_init_default, MoveCmd_init_default, MoveCmd_init_default}}
+#define ConfigSystem_init_default                {0, 0, 0, 0, 0}
 #define SetPID_init_default                      {0, 0, 0, 0, 0}
 #define SetParams_init_default                   {0, 0, 0, 0, 0}
 #define Cmd_init_default                         {0, {Moves_init_default}}
 #define AxisMoveCmd_init_zero                    {0, 0, 0, 0, 0, 0}
 #define MoveCmd_init_zero                        {false, AxisMoveCmd_init_zero, false, AxisMoveCmd_init_zero, false, AxisMoveCmd_init_zero, false, AxisMoveCmd_init_zero}
 #define Moves_init_zero                          {0, {MoveCmd_init_zero, MoveCmd_init_zero, MoveCmd_init_zero}}
+#define ConfigSystem_init_zero                   {0, 0, 0, 0, 0}
 #define SetPID_init_zero                         {0, 0, 0, 0, 0}
 #define SetParams_init_zero                      {0, 0, 0, 0, 0}
 #define Cmd_init_zero                            {0, {Moves_init_zero}}
@@ -91,6 +102,11 @@ extern "C" {
 #define MoveCmd_z_tag                            3
 #define MoveCmd_e_tag                            4
 #define Moves_move_tag                           1
+#define ConfigSystem_timestep_tag                1
+#define ConfigSystem_x_axis_idx_tag              2
+#define ConfigSystem_y_axis_idx_tag              3
+#define ConfigSystem_z_axis_idx_tag              4
+#define ConfigSystem_e_axis_idx_tag              5
 #define SetPID_axis_tag                          1
 #define SetPID_p_tag                             2
 #define SetPID_i_tag                             3
@@ -104,6 +120,7 @@ extern "C" {
 #define Cmd_moves_tag                            1
 #define Cmd_axis_params_tag                      2
 #define Cmd_setpid_tag                           3
+#define Cmd_config_system_tag                    4
 
 /* Struct field encoding specification for nanopb */
 #define AxisMoveCmd_FIELDLIST(X, a) \
@@ -134,6 +151,15 @@ X(a, STATIC,   REPEATED, MESSAGE,  move,              1)
 #define Moves_DEFAULT NULL
 #define Moves_move_MSGTYPE MoveCmd
 
+#define ConfigSystem_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, FLOAT,    timestep,          1) \
+X(a, STATIC,   SINGULAR, INT32,    x_axis_idx,        2) \
+X(a, STATIC,   SINGULAR, INT32,    y_axis_idx,        3) \
+X(a, STATIC,   SINGULAR, INT32,    z_axis_idx,        4) \
+X(a, STATIC,   SINGULAR, INT32,    e_axis_idx,        5)
+#define ConfigSystem_CALLBACK NULL
+#define ConfigSystem_DEFAULT NULL
+
 #define SetPID_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, INT32,    axis,              1) \
 X(a, STATIC,   SINGULAR, FLOAT,    p,                 2) \
@@ -155,16 +181,19 @@ X(a, STATIC,   SINGULAR, FLOAT,    counts_per_mm,     5)
 #define Cmd_FIELDLIST(X, a) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (payload,moves,payload.moves),   1) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (payload,axis_params,payload.axis_params),   2) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (payload,setpid,payload.setpid),   3)
+X(a, STATIC,   ONEOF,    MESSAGE,  (payload,setpid,payload.setpid),   3) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (payload,config_system,payload.config_system),   4)
 #define Cmd_CALLBACK NULL
 #define Cmd_DEFAULT NULL
 #define Cmd_payload_moves_MSGTYPE Moves
 #define Cmd_payload_axis_params_MSGTYPE SetParams
 #define Cmd_payload_setpid_MSGTYPE SetPID
+#define Cmd_payload_config_system_MSGTYPE ConfigSystem
 
 extern const pb_msgdesc_t AxisMoveCmd_msg;
 extern const pb_msgdesc_t MoveCmd_msg;
 extern const pb_msgdesc_t Moves_msg;
+extern const pb_msgdesc_t ConfigSystem_msg;
 extern const pb_msgdesc_t SetPID_msg;
 extern const pb_msgdesc_t SetParams_msg;
 extern const pb_msgdesc_t Cmd_msg;
@@ -173,6 +202,7 @@ extern const pb_msgdesc_t Cmd_msg;
 #define AxisMoveCmd_fields &AxisMoveCmd_msg
 #define MoveCmd_fields &MoveCmd_msg
 #define Moves_fields &Moves_msg
+#define ConfigSystem_fields &ConfigSystem_msg
 #define SetPID_fields &SetPID_msg
 #define SetParams_fields &SetParams_msg
 #define Cmd_fields &Cmd_msg
@@ -180,6 +210,7 @@ extern const pb_msgdesc_t Cmd_msg;
 /* Maximum encoded size of messages (where known) */
 #define AxisMoveCmd_size                         30
 #define Cmd_size                                 396
+#define ConfigSystem_size                        49
 #define MESSAGES_PB_H_MAX_SIZE                   Cmd_size
 #define MoveCmd_size                             128
 #define Moves_size                               393

@@ -42,7 +42,7 @@ pub fn build(b: *std.Build) void {
     lib.linkLibC();
 
     // Deps for zzplot
-    const zzplot_dep = b.dependency("zzplot", .{});
+    const zzplot_dep = b.dependency("zzplot", .{ .target = target, .optimize = optimize });
     const nanovg_dep = b.dependency("nanovg", .{ .target = target, .optimize = optimize });
 
     const zzplot = zzplot_dep.module("ZZPlot");
@@ -107,13 +107,16 @@ pub fn build(b: *std.Build) void {
     // but does not run it.
     const lib_unit_tests = b.addTest(.{
         .root_module = lib_mod,
+        .target = target,
+        .optimize = optimize,
     });
 
     lib_unit_tests.linkSystemLibrary("glfw");
     lib_unit_tests.linkSystemLibrary("GL");
     lib_unit_tests.linkSystemLibrary("X11");
     lib_unit_tests.linkSystemLibrary("libudev");
-    lib_unit_tests.linkLibrary(libusb_obj);
+    // lib_unit_tests.linkLibrary(libusb_obj); // for some reason this libusb ALWAYS has full logging enabled
+    lib_unit_tests.linkSystemLibrary("usb-1.0"); // use system libusb when you don't want logging
     lib_unit_tests.root_module.addImport("libusb", libusb_mod);
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
